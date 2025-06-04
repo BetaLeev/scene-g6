@@ -258,10 +258,7 @@ export default {
         outDiv.style.width = 'fit-content';
         outDiv.style.padding = '0px 0px 20px 0px';
         outDiv.innerHTML = `
-          <h4>${e.item.getModel().label} </h4>
-        <ul>
-          <li>Label: ${e.item.getModel().properties}</li>
-        </ul>`;
+          <h4>${e.item.getModel().label || "连线"} </h4> `;
         return outDiv;
       },
     })
@@ -292,6 +289,14 @@ export default {
         });
       }
     };
+
+    // 添加节点计数器
+    const nodeCounter = reactive({
+      "输入": { count: 1 },
+      "空间": { count: 1 },
+      "环境": { count: 1 },
+      "输出": { count: 1 },
+    });
 
     onMounted(() => {
       // 修改graph初始化配置
@@ -412,12 +417,12 @@ export default {
         e.preventDefault();
         const comp = JSON.parse(e.dataTransfer.getData('component'));
         const point = graph.getPointByClient(e.clientX, e.clientY);
-
+        const label = `${comp.label}-${nodeCounter[comp.category].count}`
         if (comp.isCombo) {
           // 添加Combo节点
           graph.addItem('combo', {
             id: `combo-${Date.now()}`,
-            label: comp.label,
+            label: label,  // 添加序号
             labelCfg: {
               position: 'bottom',
               style: {
@@ -447,7 +452,7 @@ export default {
           // 在添加节点的代码部分修改样式
           graph.addItem('node', {
             id: `node-${Date.now()}`,
-            label: comp.label,
+            label: label,  // 添加序号
             labelCfg: {
               style: {
                 fill: '#fff'
@@ -475,6 +480,7 @@ export default {
             properties: comp.properties,
           });
         }
+        nodeCounter[comp.category].count++;
       });
 
       graph.on('aftercreateedge', (e) => {
@@ -607,7 +613,7 @@ export default {
       onDragStart,
       container,
       selectedNode,
-      updateNode
+      updateNode,  // 导出计数器
     };
   }
 }
