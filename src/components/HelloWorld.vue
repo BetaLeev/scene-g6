@@ -2,7 +2,7 @@
 
   <div class="top">
     <div class="thumbnail-panel">
-      <div v-for="(item, index) in savedGraphs" :key="index" class="thumbnail-item" @click="loadGraph(item.data)">
+      <div v-for="(item, index) in savedGraphs" :key="index" class="thumbnail-item" @click="loadGraph(item)">
         <img :src="item.thumbnail" :alt="item.name" />
         <span>{{ item.name }}</span>
       </div>
@@ -26,7 +26,7 @@
     </div>
     <div v-if="contextMenu.visible" :style="{ left: contextMenu.x + 'px', top: contextMenu.y + 'px' }"
       class="context-menu">
-      <div v-if="contextMenu.item?.getType?.() === 'combo'">
+      <div v-if="contextMenu.node?.getType?.() === 'combo'">
         <div class="menu-item" @click="resizeCombo(1.2)">扩大</div>
         <div class="menu-item" @click="resizeCombo(0.8)">缩小</div>
         <div class="menu-item" @click="deleteItem">删除</div>
@@ -95,23 +95,18 @@ export default {
     });
 
     const deleteItem = () => {
-      if (contextMenu.item) {
-        graph.removeItem(contextMenu.item);
+      if (contextMenu.node) {
         contextMenu.visible = false;
-        contextMenu.item = null; // 新增这行清除引用
+        graph.removeItem(contextMenu.node._cfg.id);
       }
     };
 
     const resizeCombo = (scale) => {
-      if (contextMenu.item) {
-        const currentSize = contextMenu.item.getModel().size || [180, 100];
+      if (contextMenu.node) {
+        const currentSize = contextMenu.node.getModel().size || [180, 100];
         const newSize = [currentSize[0] * scale, currentSize[1] * scale];
-
-        graph.updateItem(contextMenu.item, {
+        graph.updateItem(contextMenu.node, {
           size: newSize,
-          labelCfg: {
-            offset: [0, newSize[1] / 2 + 5]
-          }
         });
         graph.layout();
         contextMenu.visible = false;
@@ -122,10 +117,12 @@ export default {
 
     const saveGraph = () => {
       const data = graph.save();
+      // const layout = graph.getLayout();
       const thumbnail = graph.toDataURL();
       savedGraphs.push({
         name: sceneForm.label,  // 使用场景名称作为方案名称
         data,
+        // layout,
         thumbnail,
         timestamp: Date.now()
       });
@@ -133,22 +130,20 @@ export default {
 
     // 添加方案加载方法
     // 修改loadGraph方法中的布局配置
-    const loadGraph = (graphData) => {
+    const loadGraph = (graphItem) => {
+      const { layout, data } = graphItem;
       graph.clear();
-      graph.read(graphData);
-
+      graph.read(data);
+      // graph.updateLayout(layout)
+      graph.layout();
       // 使用dagre布局实现垂直排列（关键修改）
-      graph.updateLayout({
-        type: 'dagre',        // 明确指定使用dagre布局
-        rankdir: 'TB',        // 垂直方向（Top to Bottom）
-        nodesep: 20,          // 节点间距
-        ranksep: 20,          // 层级间距
-        controlPoints: true   // 保留连线控制点
-      });
-
-      graph.render();
-      graph.zoom(0.5);
-      graph.fitView();
+      // graph.updateLayout({
+      //   type: 'dagre',        // 明确指定使用dagre布局
+      //   rankdir: 'TB',        // 垂直方向（Top to Bottom）
+      //   nodesep: 20,          // 节点间距
+      //   ranksep: 20,          // 层级间距
+      //   controlPoints: true   // 保留连线控制点
+      // });
     };
 
     const components = reactive([
@@ -282,6 +277,7 @@ export default {
     });
 
     const onDragStart = (comp) => {
+      console.log(comp, 'comp')
       event.dataTransfer.setData('component', JSON.stringify(comp));
     };
 
@@ -574,7 +570,7 @@ export default {
       graph.on('combo:contextmenu', (evt) => {
         evt.preventDefault();
         const point = graph.getPointByClient(evt.clientX, evt.clientY);
-        contextMenu.item = evt.item;
+        contextMenu.node = evt.item;
         contextMenu.x = point.x + 310;
         contextMenu.y = point.y + 160;
         contextMenu.visible = true;
@@ -584,7 +580,7 @@ export default {
       graph.on('edge:contextmenu', (evt) => {
         evt.preventDefault();
         const point = graph.getPointByClient(evt.clientX, evt.clientY);
-        contextMenu.item = evt.item;
+        contextMenu.node = evt.item;
         contextMenu.x = point.x + 260;
         contextMenu.y = point.y + 160;
         contextMenu.visible = true;
@@ -593,6 +589,7 @@ export default {
       // 点击其他地方隐藏菜单
       graph.on('canvas:click', () => {
         contextMenu.visible = false;
+        contextMenu.node = null
       });
 
       graph.render();
